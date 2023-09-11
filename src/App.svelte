@@ -1,9 +1,10 @@
 <script lang="ts">
     import {invoke} from "@tauri-apps/api/tauri";
-    import {WebviewWindow} from "@tauri-apps/api/window";
+    import {shell} from "@tauri-apps/api";
 
-    const submit = async (event: Event) => {
-        await invoke('init_gdrive');
+    const submit = async () => {
+        const consentURL: string = await invoke('init_gdrive');
+        await shell.open(consentURL);
     }
 </script>
 
