@@ -1,40 +1,59 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+mod auth;
+mod types;
+mod utils;
 
+use crate::auth::create_auth;
+use crate::types::GDrive;
+use google_drive3::{hyper, hyper_rustls, DriveHub};
 use tauri::async_runtime::Mutex;
-use google_drive::Client;
 use tauri::State;
-use tokio::sync::MutexGuard;
 
-pub struct GDrive(Mutex<Option<Client>>);
+#[tauri::command]
+async fn init_gdrive(gdrive: State<'_, GDrive>, app: tauri::AppHandle) -> Result<String, ()> {
+    let auth = create_auth(app).await;
+    let hub = DriveHub::new(
+        hyper::Client::builder().build(
+            hyper_rustls::HttpsConnectorBuilder::new()
+                .with_native_roots()
+                .https_or_http()
+                .enable_http1()
+                .build(),
+        ),
+        auth,
+    );
 
-// TODO: refactor to a separate file
-fn get_environment_variable(name: &str) -> String {
-    std::env::var(name).unwrap_or_else(|_| "".to_string())
+    let mut gd = gdrive.hub.lock().await;
+    *gd = Some(hub);
+
+    Ok(String::new())
 }
 
 #[tauri::command]
-async fn init_gdrive(gdrive: State<'_, GDrive>) -> Result<String, ()> {
-    let mut gd: MutexGuard<'_, Option<Client>> = gdrive.0.lock().await;
-    let redirect_port = tauri_plugin_oauth::start(move |url| {
-        println!("{}", url);
-    }).expect("SERVER ERROR");
-    // TODO: cache access token, refresh token and retrieve it here
-    *gd = Some(Client::new(
-        get_environment_variable("GOOGLE_DRIVE_CLIENT_ID"),
-        get_environment_variable("GOOGLE_DRIVE_CLIENT_SECRET"),
-        format!("http://127.0.0.1:{}", redirect_port), "", "",
-    ));
-    let consent_url =
-        gd.as_ref().unwrap().user_consent_url(&["https://www.googleapis.com/auth/drive.appdata".to_string()]);
-    Ok(consent_url)
+async fn info(gdrive: State<'_, GDrive>) -> Result<String, ()> {
+    let gd = gdrive.hub.lock().await;
+    let hub = gd.as_ref().unwrap();
+    let email = hub
+        .about()
+        .get()
+        .param("fields", "*")
+        .doit()
+        .await
+        .unwrap()
+        .1
+        .user
+        .unwrap()
+        .email_address;
+    Ok(email.unwrap())
 }
 
-#[tokio::main]
-async fn main() {
+fn main() {
     dotenv::dotenv().ok();
     tauri::Builder::default()
-        .manage(GDrive(Mutex::new(None)))
-        .invoke_handler(tauri::generate_handler![init_gdrive])
+        .manage(GDrive {
+            hub: Mutex::default(),
+        })
+        .invoke_handler(tauri::generate_handler![init_gdrive, info])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
