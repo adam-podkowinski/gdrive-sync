@@ -4,32 +4,13 @@ mod types;
 mod utils;
 
 use crate::auth::create_auth;
-use crate::types::GDrive;
+use crate::types::{GDrive, GHub};
 use google_drive3::{hyper, hyper_rustls, DriveHub};
 use tauri::async_runtime::Mutex;
 use tauri::State;
 
-#[tauri::command]
-async fn sign_in(gdrive: State<'_, GDrive>) -> Result<String, ()> {
-    let auth = create_auth().await;
-    let hub = DriveHub::new(
-        hyper::Client::builder().build(
-            hyper_rustls::HttpsConnectorBuilder::new()
-                .with_native_roots()
-                .https_or_http()
-                .enable_http1()
-                .build(),
-        ),
-        auth,
-    );
-
-    let mut gd = gdrive.hub.lock().await;
-    *gd = Some(hub);
-
-    return Ok(gd
-        .as_ref()
-        .unwrap()
-        .about()
+async fn get_email(hub: &GHub) -> String {
+    hub.about()
         .get()
         .param("fields", "*")
         .doit()
@@ -39,7 +20,31 @@ async fn sign_in(gdrive: State<'_, GDrive>) -> Result<String, ()> {
         .user
         .unwrap()
         .email_address
-        .unwrap());
+        .unwrap()
+}
+
+#[tauri::command]
+async fn sign_in(gdrive: State<'_, GDrive>) -> Result<String, ()> {
+    let mut gd = gdrive.hub.lock().await;
+    return match gd.as_ref() {
+        Some(hub) => Ok(get_email(hub).await),
+        _ => {
+            let auth = create_auth().await;
+            let hub: GHub = DriveHub::new(
+                hyper::Client::builder().build(
+                    hyper_rustls::HttpsConnectorBuilder::new()
+                        .with_native_roots()
+                        .https_or_http()
+                        .enable_http1()
+                        .build(),
+                ),
+                auth,
+            );
+
+            *gd = Some(hub);
+            Ok(get_email(gd.as_ref().unwrap()).await)
+        }
+    };
 }
 
 fn main() {
