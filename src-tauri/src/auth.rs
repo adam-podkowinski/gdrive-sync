@@ -7,11 +7,9 @@ use google_drive3::oauth2::authenticator_delegate::InstalledFlowDelegate;
 use google_drive3::oauth2::ApplicationSecret;
 use std::future::Future;
 use std::pin::Pin;
-use tauri::Manager;
+use webbrowser;
 
-struct AuthDelegate {
-    app: tauri::AppHandle,
-}
+struct AuthDelegate();
 
 impl InstalledFlowDelegate for AuthDelegate {
     fn present_user_url<'a>(
@@ -19,19 +17,22 @@ impl InstalledFlowDelegate for AuthDelegate {
         url: &'a str,
         _need_code: bool,
     ) -> Pin<Box<dyn Future<Output = Result<String, String>> + Send + 'a>> {
-        Box::pin(present_user_url(url, &self.app))
+        Box::pin(open_auth_url(url))
     }
 }
 
-async fn present_user_url(url: &str, app: &tauri::AppHandle) -> Result<String, String> {
-    // TODO: open url from rust code
-    app.emit_all("openGoogleAuth", url).expect("ERROR emitting");
-    Ok(String::new())
+async fn open_auth_url(url: &str) -> Result<String, String> {
+    if webbrowser::open(url).is_ok() {
+        Ok(String::new())
+    } else {
+        Err(String::from("Couldn't open browser window"))
+    }
 }
 
-pub async fn create_auth(app: tauri::AppHandle) -> Authenticator<HttpsConnector<HttpConnector>> {
+pub async fn create_auth() -> Authenticator<HttpsConnector<HttpConnector>> {
     // TODO: cache and load tokens
-    let secret: ApplicationSecret = ApplicationSecret {
+    let secret = ApplicationSecret {
+        // TODO: let user change client id and client secret and cache them
         client_id: get_environment_variable("CLIENT_ID"),
         client_secret: get_environment_variable("CLIENT_SECRET"),
         token_uri: String::from("https://oauth2.googleapis.com/token"),
@@ -48,7 +49,7 @@ pub async fn create_auth(app: tauri::AppHandle) -> Authenticator<HttpsConnector<
         secret,
         oauth2::InstalledFlowReturnMethod::HTTPRedirect,
     )
-    .flow_delegate(Box::new(AuthDelegate { app }))
+    .flow_delegate(Box::new(AuthDelegate()))
     .build()
     .await
     .unwrap();

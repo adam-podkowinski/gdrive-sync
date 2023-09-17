@@ -10,8 +10,8 @@ use tauri::async_runtime::Mutex;
 use tauri::State;
 
 #[tauri::command]
-async fn init_gdrive(gdrive: State<'_, GDrive>, app: tauri::AppHandle) -> Result<String, ()> {
-    let auth = create_auth(app).await;
+async fn sign_in(gdrive: State<'_, GDrive>) -> Result<String, ()> {
+    let auth = create_auth().await;
     let hub = DriveHub::new(
         hyper::Client::builder().build(
             hyper_rustls::HttpsConnectorBuilder::new()
@@ -26,14 +26,9 @@ async fn init_gdrive(gdrive: State<'_, GDrive>, app: tauri::AppHandle) -> Result
     let mut gd = gdrive.hub.lock().await;
     *gd = Some(hub);
 
-    Ok(String::new())
-}
-
-#[tauri::command]
-async fn info(gdrive: State<'_, GDrive>) -> Result<String, ()> {
-    let gd = gdrive.hub.lock().await;
-    let hub = gd.as_ref().unwrap();
-    let email = hub
+    return Ok(gd
+        .as_ref()
+        .unwrap()
         .about()
         .get()
         .param("fields", "*")
@@ -43,8 +38,8 @@ async fn info(gdrive: State<'_, GDrive>) -> Result<String, ()> {
         .1
         .user
         .unwrap()
-        .email_address;
-    Ok(email.unwrap())
+        .email_address
+        .unwrap());
 }
 
 fn main() {
@@ -53,7 +48,7 @@ fn main() {
         .manage(GDrive {
             hub: Mutex::default(),
         })
-        .invoke_handler(tauri::generate_handler![init_gdrive, info])
+        .invoke_handler(tauri::generate_handler![sign_in])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
