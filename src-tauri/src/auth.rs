@@ -29,12 +29,19 @@ async fn open_auth_url(url: &str) -> Result<String, String> {
     }
 }
 
-pub async fn create_auth() -> Authenticator<HttpsConnector<HttpConnector>> {
-    // TODO: cache and load tokens
+pub async fn create_auth(
+    client_id: Option<String>,
+    client_secret: Option<String>,
+) -> Authenticator<HttpsConnector<HttpConnector>> {
     let secret = ApplicationSecret {
-        // TODO: let user change client id and client secret and cache them
-        client_id: get_environment_variable("CLIENT_ID"),
-        client_secret: get_environment_variable("CLIENT_SECRET"),
+        client_id: match client_id {
+            Some(id) => id,
+            None => get_environment_variable("CLIENT_ID"),
+        },
+        client_secret: match client_secret {
+            Some(secret) => secret,
+            None => get_environment_variable("CLIENT_SECRET"),
+        },
         token_uri: String::from("https://oauth2.googleapis.com/token"),
         auth_uri: String::from("https://accounts.google.com/o/oauth2/auth"),
         redirect_uris: vec![String::from("urn:ietf:wg:oauth:2.0:oob")],
@@ -50,6 +57,7 @@ pub async fn create_auth() -> Authenticator<HttpsConnector<HttpConnector>> {
         oauth2::InstalledFlowReturnMethod::HTTPRedirect,
     )
     .flow_delegate(Box::new(AuthDelegate()))
+    .persist_tokens_to_disk("/tmp/google_tokens")
     .build()
     .await
     .unwrap();

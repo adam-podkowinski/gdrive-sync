@@ -3,6 +3,8 @@ mod auth;
 mod types;
 mod utils;
 
+use std::fs;
+
 use crate::auth::create_auth;
 use crate::types::{GDrive, GHub};
 use google_drive3::{hyper, hyper_rustls, DriveHub};
@@ -24,27 +26,43 @@ async fn get_email(hub: &GHub) -> String {
 }
 
 #[tauri::command]
-async fn sign_in(gdrive: State<'_, GDrive>) -> Result<String, ()> {
+async fn sign_out(gdrive: State<'_, GDrive>) -> Result<(), ()> {
     let mut gd = gdrive.hub.lock().await;
-    return match gd.as_ref() {
-        Some(hub) => Ok(get_email(hub).await),
-        _ => {
-            let auth = create_auth().await;
-            let hub: GHub = DriveHub::new(
-                hyper::Client::builder().build(
-                    hyper_rustls::HttpsConnectorBuilder::new()
-                        .with_native_roots()
-                        .https_or_http()
-                        .enable_http1()
-                        .build(),
-                ),
-                auth,
-            );
+    *gd = None;
+    let _ = fs::remove_file("/tmp/google_tokens");
+    Ok(())
+}
 
-            *gd = Some(hub);
-            Ok(get_email(gd.as_ref().unwrap()).await)
-        }
-    };
+#[tauri::command]
+async fn sign_in(
+    client_id: Option<String>,
+    client_secret: Option<String>,
+    gdrive: State<'_, GDrive>,
+) -> Result<String, ()> {
+    let auth = create_auth(client_id, client_secret).await;
+    let hub: GHub = DriveHub::new(
+        hyper::Client::builder().build(
+            hyper_rustls::HttpsConnectorBuilder::new()
+                .with_native_roots()
+                .https_or_http()
+                .enable_http1()
+                .build(),
+        ),
+        auth,
+    );
+    let mut gd = gdrive.hub.lock().await;
+    *gd = Some(hub);
+    Ok(get_email(gd.as_ref().unwrap()).await)
+}
+
+#[tauri::command]
+async fn check_cache(gdrive: State<'_, GDrive>) -> Result<String, ()> {
+    match fs::metadata("/tmp/google_tokens") {
+        Ok(_) => {
+            sign_in(None, None, gdrive).await
+        },
+        Err(_) => Err(()),
+    }
 }
 
 fn main() {
@@ -53,7 +71,7 @@ fn main() {
         .manage(GDrive {
             hub: Mutex::default(),
         })
-        .invoke_handler(tauri::generate_handler![sign_in])
+        .invoke_handler(tauri::generate_handler![sign_in, sign_out, check_cache])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
