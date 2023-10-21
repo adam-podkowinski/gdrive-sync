@@ -11,15 +11,13 @@
   };
 </script>
 
-<main class="bg-green-950 min-h-screen text-green-200 p-12">
-  <h1 class="text-5xl font-extrabold text-center mb-12">Welcome to GDrive Sync!</h1>
-  <a href="/">BACK</a>
-  <p>User: {$loggedIn} ({$user})</p>
-  {#if !loading}
-    <form on:submit|preventDefault={signIn}>
-      <button type="submit" class="px-3 py-2 bg-green-400 text-black rounded-xl">Submit</button>
-    </form>
-  {:else}
-    <p>Loading...</p>
-  {/if}
-</main>
+<h1 class="text-5xl font-extrabold text-center mb-12">Welcome to GDrive Sync!</h1>
+<a href="/">BACK</a>
+<p>User: {$loggedIn} ({$user})</p>
+{#if !loading}
+  <form on:submit|preventDefault={signIn}>
+    <button type="submit" class="px-3 py-2 my-2 bg-blue-600 font-bold text-white">Submit</button>
+  </form>
+{:else}
+  <p>Loading...</p>
+{/if}
