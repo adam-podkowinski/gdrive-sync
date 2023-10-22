@@ -1,12 +1,16 @@
-use crate::utils::get_environment_variable;
+use crate::types::{GDrive, GHub};
+use crate::utils::{get_email, get_environment_variable};
 use google_drive3::hyper::client::HttpConnector;
 use google_drive3::hyper_rustls::HttpsConnector;
 use google_drive3::oauth2;
 use google_drive3::oauth2::authenticator::Authenticator;
 use google_drive3::oauth2::authenticator_delegate::InstalledFlowDelegate;
 use google_drive3::oauth2::ApplicationSecret;
+use google_drive3::{hyper, hyper_rustls, DriveHub};
+use std::fs;
 use std::future::Future;
 use std::pin::Pin;
+use tauri::State;
 use webbrowser;
 
 struct AuthDelegate();
@@ -29,7 +33,7 @@ async fn open_auth_url(url: &str) -> Result<String, String> {
     }
 }
 
-pub async fn create_auth(
+async fn create_auth(
     client_id: Option<String>,
     client_secret: Option<String>,
 ) -> Authenticator<HttpsConnector<HttpConnector>> {
@@ -68,4 +72,42 @@ pub async fn create_auth(
     .await
     .expect("Error getting an access token");
     return auth;
+}
+
+#[tauri::command]
+pub async fn sign_out(gdrive: State<'_, GDrive>) -> Result<(), ()> {
+    let mut gd = gdrive.hub.lock().await;
+    *gd = None;
+    let _ = fs::remove_file("/tmp/google_tokens");
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn sign_in(
+    client_id: Option<String>,
+    client_secret: Option<String>,
+    gdrive: State<'_, GDrive>,
+) -> Result<String, ()> {
+    let auth = create_auth(client_id, client_secret).await;
+    let hub: GHub = DriveHub::new(
+        hyper::Client::builder().build(
+            hyper_rustls::HttpsConnectorBuilder::new()
+                .with_native_roots()
+                .https_or_http()
+                .enable_http1()
+                .build(),
+        ),
+        auth,
+    );
+    let mut gd = gdrive.hub.lock().await;
+    *gd = Some(hub);
+    Ok(get_email(gd.as_ref().unwrap()).await)
+}
+
+#[tauri::command]
+pub async fn check_cache(gdrive: State<'_, GDrive>) -> Result<String, ()> {
+    match fs::metadata("/tmp/google_tokens") {
+        Ok(_) => sign_in(None, None, gdrive).await,
+        Err(_) => Err(()),
+    }
 }

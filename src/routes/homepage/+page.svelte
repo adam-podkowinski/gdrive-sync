@@ -1,12 +1,23 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/tauri";
-  import { loggedIn, user } from "../../stores/gdrive";
-  const signOut = async () => {
-    await invoke("sign_out");
-    $user = undefined;
+  import { dirToSync, user } from "../../stores/gdrive";
+  const syncDirectory = () => {
+    invoke("sync_dir", { path: $dirToSync });
   };
 </script>
 
 <h1 class="text-5xl font-extrabold text-center mb-12">Welcome to GDrive Sync!</h1>
-<p>User: {$loggedIn} ({$user})</p>
-<button on:click={signOut} class="py-2 px-4 bg-blue-500 text-white mt-4">SIGN OUT</button>
+<p>User signed in: {$user}</p>
+<form on:submit|preventDefault={syncDirectory} class="mt-4 flex flex-col gap-4">
+  <div>
+    <label for="dir">Path to a directory to sync</label>
+    <input
+      type="text"
+      bind:value={$dirToSync}
+      required={true}
+      name="dir"
+      class="p-1 bg-blue-200 text-black shadow-none focus:ring-4 ring-offset-0 focus:outline-none ring-blue-500"
+    />
+  </div>
+  <button type="submit" class="px-4 py-2 bg-blue-500 text-black hover:bg-blue-600 transition-colors">SYNC</button>
+</form>

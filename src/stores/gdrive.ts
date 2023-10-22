@@ -2,6 +2,7 @@ import { goto } from "$app/navigation";
 import { derived, writable } from "svelte/store";
 
 export const user = writable<string | undefined>();
+export const dirToSync = writable<string | undefined>();
 
 user.subscribe((user) => {
   if (user) {
@@ -16,4 +17,4 @@ export const clientSecret = writable<string>("");
 
 export const drives = writable<[] | undefined>();
 
-export const loggedIn = derived(user, (u) => u !== undefined);
+export const signedIn = derived(user, (u) => u !== undefined);
