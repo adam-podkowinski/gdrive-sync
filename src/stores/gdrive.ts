@@ -4,12 +4,12 @@ import { derived, writable } from "svelte/store";
 export const user = writable<string | undefined>();
 export const dirToSync = writable<string | undefined>();
 
-user.subscribe((user) => {
-  if (user) {
-    goto("/homepage");
-  } else {
-    goto("/");
-  }
+user.subscribe(async (user) => {
+    if (user) {
+        await goto("/homepage");
+    } else {
+        await goto("/");
+    }
 });
 
 export const clientId = writable<string>("");

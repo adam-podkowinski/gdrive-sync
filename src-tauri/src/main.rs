@@ -2,18 +2,12 @@
 mod auth;
 mod types;
 mod utils;
+mod syncing;
 
-use crate::{
-    auth::{check_cache, sign_in, sign_out},
-    types::GDrive,
-};
+use auth::{check_cache, sign_in, sign_out};
+use syncing::sync_dir;
 use tauri::async_runtime::Mutex;
-
-#[tauri::command]
-fn sync_dir(path: String) -> bool {
-    println!("{}", path);
-    true
-}
+use types::GDrive;
 
 fn main() {
     dotenv::dotenv().ok();

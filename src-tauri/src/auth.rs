@@ -38,14 +38,8 @@ async fn create_auth(
     client_secret: Option<String>,
 ) -> Authenticator<HttpsConnector<HttpConnector>> {
     let secret = ApplicationSecret {
-        client_id: match client_id {
-            Some(id) => id,
-            None => get_environment_variable("CLIENT_ID"),
-        },
-        client_secret: match client_secret {
-            Some(secret) => secret,
-            None => get_environment_variable("CLIENT_SECRET"),
-        },
+        client_id: client_id.unwrap_or_else(|| get_environment_variable("CLIENT_ID")),
+        client_secret: client_secret.unwrap_or_else(|| get_environment_variable("CLIENT_SECRET")),
         token_uri: String::from("https://oauth2.googleapis.com/token"),
         auth_uri: String::from("https://accounts.google.com/o/oauth2/auth"),
         redirect_uris: vec![String::from("urn:ietf:wg:oauth:2.0:oob")],
