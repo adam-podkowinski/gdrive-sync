@@ -15,7 +15,10 @@ pub async fn upload_file(path: String, parents: Vec<String>, hub: &GHub) -> Stri
             "application/octet-stream".parse().unwrap(),
         )
         .await
-        .unwrap().1.id.unwrap()
+        .unwrap()
+        .1
+        .id
+        .unwrap()
 }
 
 async fn create_folder(hub: &GHub) -> String {
@@ -60,10 +63,10 @@ async fn create_folder(hub: &GHub) -> String {
 
 #[tauri::command]
 pub async fn sync_dir(path: String, gdrive: State<'_, GDrive>) -> Result<String, String> {
-    let gd = gdrive.hub.lock().await;
-    let gd = gd.as_ref().unwrap();
-    let parent_id: String = create_folder(gd).await;
-    let file_id = upload_file(path, vec![parent_id], gd).await;
+    let hub = gdrive.hub.lock().await;
+    let hub = hub.as_ref().unwrap();
+    let parent_id: String = create_folder(hub).await;
+    let file_id = upload_file(path, vec![parent_id], hub).await;
     // TODO: save an id and when the file changes only update the file and don't upload another
     Ok(file_id)
 }
