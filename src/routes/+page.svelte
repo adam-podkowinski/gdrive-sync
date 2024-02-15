@@ -26,7 +26,7 @@
     Please, provide mandatory variables for connecting with Google Drive (OAuth app) or leave form inputs blank to use
     environment variables (CLIENT_ID and CLIENT_SECRET variables). After clicking "Submit" a Google OAuth site should
     pop up and you will be able to sign in to a Google account you want to use GDrive-Sync with. <br />Program will
-    create a file at /tmp/google_tokens. Keep it secure because sensitive data will be kept there for caching purposes.
+    create a file at ~/.config/google_tokens. Keep it secure because sensitive data will be kept there for caching purposes.
 </p>
 <form on:submit|preventDefault={signIn} class="flex flex-col gap-4 bg-slate-900 p-4">
     <h2 class="font-bold text-xl">GOOGLE OAUTH</h2>

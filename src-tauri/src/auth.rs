@@ -1,5 +1,5 @@
 use crate::types::{GDrive, GHub};
-use crate::utils::{get_email, get_environment_variable};
+use crate::utils::{get_email, get_environment_variable, tokens_path};
 use google_drive3::hyper::client::HttpConnector;
 use google_drive3::hyper_rustls::HttpsConnector;
 use google_drive3::oauth2;
@@ -55,7 +55,7 @@ async fn create_auth(
         oauth2::InstalledFlowReturnMethod::HTTPRedirect,
     )
     .flow_delegate(Box::new(AuthDelegate()))
-    .persist_tokens_to_disk("/tmp/google_tokens")
+    .persist_tokens_to_disk(tokens_path())
     .build()
     .await
     .unwrap();
@@ -72,7 +72,7 @@ async fn create_auth(
 pub async fn sign_out(gdrive: State<'_, GDrive>) -> Result<(), ()> {
     let mut gd = gdrive.hub.lock().await;
     *gd = None;
-    let _ = fs::remove_file("/tmp/google_tokens");
+    let _ = fs::remove_file(tokens_path());
     Ok(())
 }
 
@@ -100,7 +100,7 @@ pub async fn sign_in(
 
 #[tauri::command]
 pub async fn check_cache(gdrive: State<'_, GDrive>) -> Result<String, ()> {
-    match fs::metadata("/tmp/google_tokens") {
+    match fs::metadata(tokens_path()) {
         Ok(_) => sign_in(None, None, gdrive).await,
         Err(_) => Err(()),
     }
